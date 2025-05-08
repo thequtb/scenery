@@ -15,6 +15,10 @@ This repository contains a multi-tenant AI assistant platform built with Django 
 - **Vendor Analytics Assistant** *(Prototype)*: Business users can query campaign performance using AI.
 
 ## Tech Stack
-
+- Buildah+Podman
+- Posgresql 17.4
+- Elixir ecto phoenix for rest api, web pages 
+- Bumblebee for default embeddings and heavier instruments for precision or performance oriented case
+- Fastapi+LangChains for complex conversation chains
 
 ## Setup
