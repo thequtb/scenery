@@ -1,4 +1,4 @@
-# Journal
+# Zere
 
 To start your Phoenix server:
 
