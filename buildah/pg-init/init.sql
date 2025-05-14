@@ -1,6 +1,6 @@
-create user odoo with superuser password 'bismillah';
-create database odoo with owner odoo;
+create user qutb with superuser password 'bismillah';
+create database playground with owner qutb;
 
-\c odoo;
+\c playground;
 
 create extension vector;
