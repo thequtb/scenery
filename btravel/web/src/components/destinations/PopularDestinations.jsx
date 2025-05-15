@@ -1,14 +1,141 @@
-
 'use client'
 
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation } from "swiper";
 import { Scrollbar } from "swiper";
-import { destinations2 } from "../../data/desinations";
 
 const PopularDestinations = () => {
+  const [destinations, setDestinations] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Default placeholder image to use when image URL is invalid
+  const defaultImageUrl = "/img/destinations/1/1.png";
+
+  useEffect(() => {
+    const fetchDestinations = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Use relative URL for API endpoint and match route.js path
+        const response = await fetch('/api/destinations');
+        if (!response.ok) {
+          throw new Error(`Failed to fetch destinations: ${response.status}`);
+        }
+        
+        const responseData = await response.json();
+        console.log('PopularDestinations API response:', responseData);
+        
+        // Check if data exists in the response
+        if (!responseData || !responseData.data) {
+          throw new Error('Invalid data format received from API');
+        }
+        
+        const dataArray = responseData.data;
+        
+        // Make sure we have an array of destinations
+        if (!Array.isArray(dataArray)) {
+          throw new Error('API did not return an array of destinations');
+        }
+        
+        // Transform API data to match the component's expected format for popular destinations
+        const formattedDestinations = dataArray.map(dest => ({
+          id: dest.id,
+          city: dest.city || dest.name || 'Unknown City',
+          hoverText: dest.hover_text || `${dest.properties || '10'} Properties Available`,
+          img: isValidImageUrl(dest.img) ? dest.img : '/img/destinations/1/1.png'
+        }));
+        
+        setDestinations(formattedDestinations);
+      } catch (error) {
+        console.error('Error fetching popular destinations:', error);
+        setError(error.message);
+        
+        // Fallback to hard-coded data
+        setDestinations([
+          {
+            id: 1,
+            city: "New York",
+            hoverText: "14 Hotel - 22 Cars - 18 Tours - 95 Activity",
+            img: "/img/destinations/1/1.png",
+          },
+          {
+            id: 2,
+            city: "London",
+            hoverText: "14 Hotel - 22 Cars - 18 Tours - 95 Activity",
+            img: "/img/destinations/1/2.png",
+          },
+          {
+            id: 3,
+            city: "Barcelona",
+            hoverText: "14 Hotel - 22 Cars - 18 Tours - 95 Activity",
+            img: "/img/destinations/1/3.png",
+          },
+          {
+            id: 4,
+            city: "Sydney",
+            hoverText: "14 Hotel - 22 Cars - 18 Tours - 95 Activity",
+            img: "/img/destinations/1/4.png",
+          },
+          {
+            id: 5,
+            city: "Rome",
+            hoverText: "14 Hotel - 22 Cars - 18 Tours - 95 Activity",
+            img: "/img/destinations/1/5.png",
+          }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDestinations();
+  }, []);
+
+  // Function to check if a URL is a valid image URL
+  const isValidImageUrl = (url) => {
+    if (!url) return false;
+    
+    // Basic check for URL format
+    try {
+      new URL(url);
+    } catch (e) {
+      // If the URL is a relative path starting with '/'
+      if (url.startsWith('/')) {
+        return true;
+      }
+      return false;
+    }
+    
+    // Exclude Google Drive folder links which aren't direct image links
+    if (url.includes('drive.google.com/drive') || url.includes('drive.google.com/folders')) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // Function to handle image loading errors
+  const handleImageError = (e) => {
+    e.target.src = defaultImageUrl;
+  };
+
+  if (isLoading) {
+    return <div className="text-center py-40">Loading destinations...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-40 text-danger">Error: {error}</div>;
+  }
+
+  if (destinations.length === 0) {
+    return <div className="text-center py-40">No destinations available</div>;
+  }
+
   return (
     <>
       <Swiper
@@ -40,7 +167,7 @@ const PopularDestinations = () => {
           },
         }}
       >
-        {destinations2.map((item) => (
+        {destinations.map((item) => (
           <SwiperSlide key={item.id}>
             <Link
               href="#"
@@ -52,8 +179,10 @@ const PopularDestinations = () => {
                   width={300}
                   height={400}
                   src={item.img}
-                  alt="image"
+                  alt={item.city}
                   className="js-lazy"
+                  onError={handleImageError}
+                  unoptimized={!item.img.startsWith('/')} // Skip optimization for external URLs
                 />
               </div>
               <div className="citiesCard__content d-flex flex-column justify-between text-center pt-30 pb-20 px-20">
