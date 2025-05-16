@@ -59,7 +59,7 @@ async def handle_message(message: Message):
                 # Check if conversation is complete
                 if data.get('is_complete'):
                     # Send the Telegram mini app link
-                    await message.answer(f"I've gathered all the information I need. You can now complete your booking:")
+                    await message.answer(f"I've gathered all the information I need. You can now complete your booking.")
                     await message.answer(data.get('telegram_link', 'https://t.me/qnbq_assistant_bot/btravel'))
                     
                     # Clear the conversation
@@ -69,15 +69,18 @@ async def handle_message(message: Message):
                     await message.answer(data.get('message', 'Sorry, I could not process your request.'))
             else:
                 # Handle API error
-                error_data = await response.json()
-                if 'error' in error_data and 'telegram_link' in error_data:
-                    # This is an expired conversation
-                    await message.answer(f"Your session has expired. Please start a new conversation.")
-                    await message.answer(error_data.get('telegram_link', 'https://t.me/qnbq_assistant_bot/btravel'))
-                    # Clear the conversation
-                    user_conversations.pop(user_id, None)
-                else:
-                    await message.answer("Sorry, I'm having trouble processing your request. Please try again later.")
+                try:
+                    error_data = await response.json()
+                    if 'error' in error_data and 'telegram_link' in error_data:
+                        # This is an expired conversation
+                        await message.answer(f"Your session has expired. Please start a new conversation.")
+                        await message.answer(error_data.get('telegram_link'))
+                        # Clear the conversation
+                        user_conversations.pop(user_id, None)
+                    else:
+                        await message.answer("Sorry, I'm having trouble processing your request. Please try again later.")
+                except:
+                    await message.answer("Sorry, I'm having trouble connecting to the service. Please try again later.")
 
 async def main():
     # Start the bot

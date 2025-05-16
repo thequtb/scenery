@@ -8,7 +8,6 @@ class Command(BaseCommand):
         agents_data = [
             {
                 'name': 'Hotel Booking Agent',
-                'type': 'hotel',
                 'description': 'I am a hotel booking specialist. I can help you find and book hotels based on your preferences, including location, dates, budget, amenities, and star rating. I understand hotel accommodations well and can recommend options that best fit your needs for business or leisure travel.',
                 'required_fields': ['destination', 'check_in_date', 'check_out_date', 'guests', 'rooms'],
                 'optional_fields': ['budget', 'star_rating', 'amenities', 'property_type', 'neighborhood'],
@@ -27,7 +26,6 @@ class Command(BaseCommand):
             },
             {
                 'name': 'Apartment Booking Agent',
-                'type': 'apartment',
                 'description': 'I specialize in apartment and vacation rental bookings. I can help you find apartments, houses, or vacation rentals based on your location, dates, size requirements, and amenities preferences. I understand the unique aspects of apartment rentals like kitchen facilities, living space, and longer-term stays.',
                 'required_fields': ['destination', 'check_in_date', 'check_out_date', 'guests'],
                 'optional_fields': ['bedrooms', 'budget', 'amenities', 'property_type', 'neighborhood'],
@@ -45,7 +43,6 @@ class Command(BaseCommand):
             },
             {
                 'name': 'Activity Booking Agent',
-                'type': 'activity',
                 'description': 'I am an activity booking expert who can help you find and book exciting activities, attractions, and experiences at your travel destination. From guided tours to adventure sports, cultural experiences to family activities, I can recommend options based on your interests, schedule, group size, and fitness level.',
                 'required_fields': ['destination', 'activity_date', 'participants'],
                 'optional_fields': ['activity_type', 'duration', 'price_range', 'intensity_level', 'age_group'],
@@ -62,7 +59,6 @@ class Command(BaseCommand):
             },
             {
                 'name': 'Tour Booking Agent',
-                'type': 'tour',
                 'description': 'I specialize in booking guided tours and travel packages. Whether you're looking for a day tour, multi-day excursion, or comprehensive travel package, I can help find options based on your destination, duration, interests, and group size. I understand different tour styles from cultural immersion to adventure expeditions.',
                 'required_fields': ['destination', 'start_date', 'end_date', 'travelers'],
                 'optional_fields': ['tour_type', 'budget', 'group_size', 'language', 'transportation'],
@@ -80,7 +76,6 @@ class Command(BaseCommand):
             },
             {
                 'name': 'Car Rental Agent',
-                'type': 'car',
                 'description': 'I am a car rental booking specialist who can help you find and book the right vehicle for your travel needs. I can assist with selecting car types, understanding rental terms, finding the best rates, and arranging pick-up and drop-off locations based on your itinerary and requirements.',
                 'required_fields': ['pickup_location', 'pickup_date', 'dropoff_date', 'dropoff_location'],
                 'optional_fields': ['car_type', 'transmission', 'budget', 'rental_company', 'extras'],
@@ -98,7 +93,6 @@ class Command(BaseCommand):
             },
             {
                 'name': 'Generic Travel Assistant',
-                'type': 'generic',
                 'description': 'I am a general travel assistant that can help with various travel needs. Whether you need accommodation, transportation, activities, tours, or advice on destinations, I can guide you through your travel planning and booking process. Just let me know what you\'re looking for.',
                 'required_fields': ['travel_type', 'destination', 'dates', 'travelers'],
                 'optional_fields': ['budget', 'preferences', 'special_requirements'],
@@ -118,7 +112,6 @@ class Command(BaseCommand):
             Agent.objects.update_or_create(
                 name=agent_data['name'],
                 defaults={
-                    'type': agent_data['type'],
                     'description': agent_data['description'],
                     'required_fields': agent_data['required_fields'],
                     'optional_fields': agent_data['optional_fields'],

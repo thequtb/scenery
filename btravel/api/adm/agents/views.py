@@ -8,7 +8,9 @@ from pgvector.django import L2Distance
 from django.db.models import F
 
 from .models import Agent, Conversation, Message
-from ..utlils.embeddings import get_embedding
+from .serializers import ConversationSerializer
+from utils.embeddings import get_embedding
+from .langchain_handler import LangChainHandler
 
 class ConversationView(APIView):
     """
@@ -22,14 +24,17 @@ class ConversationView(APIView):
         - Creates a new conversation if conversation_id is not provided
         - Checks if conversation is still active (within 1 hour)
         - Finds best matching agent using vector similarity
+        - Uses LangChain to process the conversation and extract information
         - Returns agent response and conversation details
         """
-        # Get required data from request
-        user_message = request.data.get('message')
-        conversation_id = request.data.get('conversation_id')
+        # Validate input data
+        serializer = ConversationSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
         
-        if not user_message:
-            return Response({'error': 'Message is required'}, status=status.HTTP_400_BAD_REQUEST)
+        # Get validated data
+        user_message = serializer.validated_data['message']
+        conversation_id = serializer.validated_data.get('conversation_id')
         
         # Check if conversation exists and is active
         conversation = None
@@ -38,7 +43,7 @@ class ConversationView(APIView):
                 conversation = Conversation.objects.get(id=conversation_id)
                 # Check if conversation is expired (more than 1 hour old)
                 one_hour_ago = timezone.now() - timedelta(hours=1)
-                if conversation.created_at < one_hour_ago:
+                if conversation.created_at < one_hour_ago or not conversation.is_active:
                     conversation.is_active = False
                     conversation.save()
                     return Response({
@@ -74,79 +79,42 @@ class ConversationView(APIView):
                 conversation.agent = best_agent
                 conversation.save()
             else:
-                # Fallback to generic agent if no agents available
-                generic_agent = Agent.objects.filter(type='generic').first()
-                if not generic_agent:
-                    generic_agent = Agent.objects.create(
-                        name='Generic Assistant',
-                        type='generic',
-                        description='I am a general travel assistant who can help you with various travel needs.'
-                    )
+                # Fallback to create a generic agent if none exist
+                generic_agent = Agent.objects.create(
+                    name='Generic Travel Assistant',
+                    description='I am a general travel assistant that can help with various travel needs.',
+                    required_fields=['travel_type', 'destination', 'dates', 'travelers'],
+                    optional_fields=['budget', 'preferences', 'special_requirements'],
+                    prompts={
+                        'travel_type': 'What type of travel assistance do you need?',
+                        'destination': 'Where are you planning to travel?',
+                        'dates': 'When are you planning to travel?',
+                        'travelers': 'How many people are traveling?'
+                    }
+                )
                 conversation.agent = generic_agent
                 conversation.save()
         
-        # Generate response based on the agent
+        # Process message with LangChain
         agent = conversation.agent
+        langchain_handler = LangChainHandler(agent, conversation)
+        result = langchain_handler.process_message(user_message)
         
-        # Check conversation state to determine which questions to ask
-        # For simplicity, we're just using a basic response here
-        # In a real implementation, you'd want to use LLM to generate responses
-        # and track which fields have been collected
-        
-        # Generate agent response based on collected data and remaining fields
-        response_message = self._generate_response(conversation, agent)
+        # Extract response components
+        response_message = result.get('response', "I'm here to help with your travel plans.")
+        is_complete = result.get('is_complete', False)
         
         # Save assistant message
-        assistant_message = Message.objects.create(
+        Message.objects.create(
             conversation=conversation,
             role='assistant',
             content=response_message
         )
-        
-        # Check if conversation is complete
-        is_complete = self._check_conversation_complete(conversation)
         
         # Return response with conversation details
         return Response({
             'conversation_id': conversation.id,
             'message': response_message,
             'is_complete': is_complete,
-            'agent_type': agent.type,
             'telegram_link': 'https://t.me/qnbq_assistant_bot/btravel' if is_complete else None
         })
-    
-    def _generate_response(self, conversation, agent):
-        """
-        Generate a response based on the conversation history and agent type.
-        In a production system, this would use an LLM to generate responses.
-        """
-        # Get conversation history
-        messages = conversation.get_messages().order_by('created_at')
-        
-        # For simplicity, using basic logic - in production, use LLM
-        if messages.count() <= 1:  # Only user message exists
-            return f"Hello! I'm your {agent.type} booking assistant. How can I help you today?"
-        
-        # Simulate asking for required fields based on agent type
-        if agent.type == 'hotel':
-            return "Can you tell me your destination, check-in date, check-out date, and number of guests for your hotel booking?"
-        elif agent.type == 'apartment':
-            return "For apartment booking, I need to know your destination, dates, and how many people will be staying."
-        elif agent.type == 'activity':
-            return "What type of activity are you interested in, and where? When would you like to do this?"
-        elif agent.type == 'tour':
-            return "What kind of tour are you looking for? Where would you like to go and for how long?"
-        elif agent.type == 'car':
-            return "For car rental, I need to know your pickup location, dates, and preferred car type."
-        else:
-            return "How can I help with your travel plans today?"
-    
-    def _check_conversation_complete(self, conversation):
-        """
-        Check if all required information has been collected.
-        In a production system, this would analyze the conversation 
-        to determine if all required fields were collected.
-        """
-        # For simplicity, we'll consider a conversation complete after 5 messages
-        message_count = conversation.get_messages().count()
-        return message_count >= 5

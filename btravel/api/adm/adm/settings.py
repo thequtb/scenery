@@ -46,6 +46,7 @@ INSTALLED_APPS = [
     'django_svelte_jsoneditor',
     'travel',
     'agents',
+    'utils',
 ]
 
 MIDDLEWARE = [

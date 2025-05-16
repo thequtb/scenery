@@ -1,21 +1,11 @@
 from django.db import models
 from pgvector.django import VectorField
 import uuid
-from ..utlils.embeddings import get_embedding
+from utils.embeddings import get_embedding
 
 # Create your models here.
 class Agent(models.Model):
-    TYPE_CHOICES = (
-        ('hotel', 'Hotel'),
-        ('apartment', 'Apartment'),
-        ('activity', 'Activity'),
-        ('tour', 'Tour'),
-        ('car', 'Car'),
-        ('generic', 'Generic'),
-    )
-    
     name = models.CharField(max_length=255)
-    type = models.CharField(max_length=20, choices=TYPE_CHOICES, default='generic')
     description = models.TextField()
     required_fields = models.JSONField(default=list, blank=True)
     optional_fields = models.JSONField(default=list, blank=True)
@@ -29,7 +19,7 @@ class Agent(models.Model):
         super().save(*args, **kwargs)
         
     def __str__(self):
-        return f"{self.name} ({self.type})"
+        return self.name
 
 
 class Conversation(models.Model):
@@ -37,6 +27,7 @@ class Conversation(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     agent = models.ForeignKey(Agent, on_delete=models.SET_NULL, null=True, blank=True, related_name='conversations')
+    collected_data = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"Conversation {self.id}"
