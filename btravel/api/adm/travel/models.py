@@ -1,95 +1,90 @@
 from django.db import models
+from pgvector.django import VectorField
+from .utils import generate_bookable_embedding, generate_collection_embedding
+import numpy as np
+from django.core.validators import MinValueValidator, MaxValueValidator
+from django.contrib.auth.models import User
 
 class Destination(models.Model):
-    city = models.CharField(max_length=100)
-    properties = models.CharField(max_length=20, blank=True, null=True)
-    region = models.CharField(max_length=50, blank=True, null=True)
-    img = models.CharField(max_length=255, blank=True, null=True)
-    hover_text = models.CharField(max_length=255, blank=True, null=True)
-    title = models.CharField(max_length=100, blank=True, null=True)
-    travellers = models.CharField(max_length=20, blank=True, null=True)
-    location = models.CharField(max_length=100, blank=True, null=True)
-    name = models.CharField(max_length=100, blank=True, null=True)
-    number_of_properties = models.CharField(max_length=20, blank=True, null=True)
-    col_class = models.CharField(max_length=50, blank=True, null=True)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
-    
-    def __str__(self):
-        return self.city or self.title or self.name or ""
+    name = models.CharField(max_length=255)
 
-class Hotel(models.Model):
-    title = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    tag = models.CharField(max_length=50, blank=True, null=True)
-    img = models.CharField(max_length=255)
-    slide_img = models.JSONField(default=list)
-    ratings = models.CharField(max_length=10)
-    number_of_reviews = models.CharField(max_length=20)
-    price = models.CharField(max_length=20)
-    city = models.CharField(max_length=100, blank=True, null=True)
-    category = models.CharField(max_length=50, blank=True, null=True)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
-    
-    def __str__(self):
-        return self.title
-
-class Rental(models.Model):
-    title = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    tag = models.CharField(max_length=50, blank=True, null=True)
-    slide_img = models.JSONField(default=list)
-    ratings = models.CharField(max_length=10)
-    number_of_reviews = models.CharField(max_length=20)
-    price = models.CharField(max_length=20)
-    guest = models.CharField(max_length=10)
-    bedroom = models.CharField(max_length=10)
-    bed = models.CharField(max_length=10)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
-    
-    def __str__(self):
-        return self.title
-
-class TourCategory(models.Model):
-    name = models.CharField(max_length=100)
-    icon = models.CharField(max_length=50)
-    tour_number = models.CharField(max_length=10)
-    price = models.CharField(max_length=20)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
-    
-    class Meta:
-        verbose_name_plural = "Tour Categories"
-    
     def __str__(self):
         return self.name
 
-class Tour(models.Model):
+
+
+class Bookable(models.Model):
+    class BookableType(models.TextChoices):
+        HOTEL = 'hotel'
+        APARTMENT = 'apartment'
+        ACTIVITY = 'activity'
+        TOUR = 'tour'
+        CAR = 'car'
+        OTHER = 'other'
+
     title = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    tag = models.CharField(max_length=50, blank=True, null=True)
-    slide_img = models.JSONField(default=list)
-    duration = models.CharField(max_length=10)
-    number_of_reviews = models.CharField(max_length=20)
-    price = models.CharField(max_length=20)
-    tour_type = models.CharField(max_length=50)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
+    destination = models.ForeignKey('Destination', on_delete=models.PROTECT)
+    type = models.CharField(max_length=255, choices=BookableType.choices)
+    options = models.JSONField(blank=True, null=True, default=dict)
+    embedding = VectorField(dimensions=1536, blank=True, null=True)
     
+    def save(self, *args, **kwargs):
+        # Generate embedding before saving
+        destination_name = self.destination.name if self.destination_id else ""
+        embedding_vector = generate_bookable_embedding(
+            self.title,
+            self.type,
+            destination_name,
+            self.options
+        )
+        self.embedding = embedding_vector
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.title
 
-class Car(models.Model):
-    title = models.CharField(max_length=255)
-    location = models.CharField(max_length=255)
-    tag = models.CharField(max_length=50, blank=True, null=True)
-    slide_img = models.JSONField(default=list)
-    type = models.CharField(max_length=50)
-    ratings = models.CharField(max_length=10)
-    number_of_reviews = models.CharField(max_length=20)
-    price = models.CharField(max_length=20)
-    seat = models.CharField(max_length=10)
-    luggage = models.CharField(max_length=10)
-    transmission = models.CharField(max_length=20)
-    speed = models.CharField(max_length=50)
-    delay_animation = models.CharField(max_length=10, blank=True, null=True)
-    
+
+class BookableImage(models.Model):
+    bookable = models.ForeignKey('Bookable', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='img/')
+    is_thumbnail = models.BooleanField(default=False)
+
     def __str__(self):
-        return self.title 
+        return self.image.url
+    
+
+class Collection(models.Model):
+    name = models.CharField(max_length=255)
+    description = models.TextField()
+    embedding = VectorField(dimensions=1536, blank=True, null=True)
+
+    def save(self, *args, **kwargs):
+        # Generate embedding from description
+        embedding_vector = generate_collection_embedding(self.description)
+        self.embedding = embedding_vector
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
+class CollectionItem(models.Model):
+    collection = models.ForeignKey('Collection', on_delete=models.CASCADE)
+    bookable = models.ForeignKey('Bookable', on_delete=models.CASCADE)
+
+
+class Review(models.Model):
+    bookable = models.ForeignKey('Bookable', on_delete=models.CASCADE, related_name='reviews')
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    rating = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    comment = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('bookable', 'user')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user.username}'s review for {self.bookable.title}"
+

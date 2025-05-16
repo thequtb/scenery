@@ -1,0 +1,6 @@
+---
+description: virtualenv related tasts
+globs: 
+alwaysApply: false
+---
+/home/qutb/apps/snr/scenery/btravel/.venv/bin/python

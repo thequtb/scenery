@@ -1,37 +1,50 @@
 from django.contrib import admin
-from .models import Destination, Hotel, Rental, TourCategory, Tour, Car
+from .models import Destination, Bookable, BookableImage, Collection, CollectionItem, Review
+from django_svelte_jsoneditor.widgets import SvelteJSONEditorWidget
+from django.db.models import JSONField
 
 @admin.register(Destination)
 class DestinationAdmin(admin.ModelAdmin):
-    list_display = ('id', 'city', 'title', 'name', 'region', 'location')
-    search_fields = ('city', 'title', 'name', 'region', 'location')
-    list_filter = ('region',)
+    list_display = ['name']
+    search_fields = ['name']
 
-@admin.register(Hotel)
-class HotelAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'location', 'price', 'city', 'category', 'ratings')
-    search_fields = ('title', 'location', 'city')
-    list_filter = ('city', 'category')
+class BookableImageInline(admin.TabularInline):
+    model = BookableImage
+    extra = 1
 
-@admin.register(Rental)
-class RentalAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'location', 'price', 'bedroom', 'guest')
-    search_fields = ('title', 'location')
-    list_filter = ('bedroom', 'guest')
+class ReviewInline(admin.TabularInline):
+    model = Review
+    extra = 0
+    readonly_fields = ['created_at', 'updated_at']
 
-@admin.register(TourCategory)
-class TourCategoryAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'tour_number', 'price')
-    search_fields = ('name',)
+@admin.register(Bookable)
+class BookableAdmin(admin.ModelAdmin):
+    list_display = ['title', 'destination', 'type']
+    list_filter = ['type', 'destination']
+    search_fields = ['title']
+    inlines = [BookableImageInline, ReviewInline]
+    formfield_overrides = {
+        JSONField: {'widget': SvelteJSONEditorWidget},
+    }
 
-@admin.register(Tour)
-class TourAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'location', 'duration', 'price', 'tour_type')
-    search_fields = ('title', 'location', 'tour_type')
-    list_filter = ('tour_type',)
+@admin.register(BookableImage)
+class BookableImageAdmin(admin.ModelAdmin):
+    list_display = ['bookable', 'image', 'is_thumbnail']
+    list_filter = ['is_thumbnail', 'bookable']
 
-@admin.register(Car)
-class CarAdmin(admin.ModelAdmin):
-    list_display = ('id', 'title', 'location', 'type', 'price', 'transmission')
-    search_fields = ('title', 'location', 'type')
-    list_filter = ('type', 'transmission') 
+@admin.register(Collection)
+class CollectionAdmin(admin.ModelAdmin):
+    list_display = ['name', 'description']
+    search_fields = ['name', 'description']
+
+@admin.register(CollectionItem)
+class CollectionItemAdmin(admin.ModelAdmin):
+    list_display = ['collection', 'bookable']
+    list_filter = ['collection']
+
+@admin.register(Review)
+class ReviewAdmin(admin.ModelAdmin):
+    list_display = ['bookable', 'user', 'rating', 'created_at']
+    list_filter = ['rating', 'created_at']
+    search_fields = ['bookable__title', 'user__username', 'comment']
+    readonly_fields = ['created_at', 'updated_at']
